@@ -60,7 +60,7 @@ public class DesktopAudioBackend implements IAudioBackend {
         javazoom.jl.decoder.Header header = bitstream.readFrame();
         if (header == null) throw new Exception("MP3 inválido ou vazio");
 
-        int sampleRate = header.getSampleRate();
+        int sampleRate = header.frequency();
         int channels = (header.mode() == javazoom.jl.decoder.Header.SINGLE_CHANNEL) ? 1 : 2;
         AudioFormat format = new AudioFormat(sampleRate, 16, channels, true, false);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();

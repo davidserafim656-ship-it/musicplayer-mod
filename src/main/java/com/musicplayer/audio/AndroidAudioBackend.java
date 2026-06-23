@@ -148,7 +148,7 @@ public class AndroidAudioBackend implements IAudioBackend {
         javazoom.jl.decoder.Header header = bitstream.readFrame();
         if (header == null) throw new Exception("MP3 inválido");
 
-        int sampleRate = header.getSampleRate();
+        int sampleRate = header.frequency();
         int channels = (header.mode() == javazoom.jl.decoder.Header.SINGLE_CHANNEL) ? 1 : 2;
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 

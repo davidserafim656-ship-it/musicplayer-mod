@@ -16,12 +16,10 @@ public class MusicPlayerScreen extends Screen {
     private List<String> tracks;
     private int scrollOffset = 0;
     private static final int VISIBLE_TRACKS = 8;
-    private static final int TRACK_HEIGHT = 18;
-
-    private int winX, winY, winW, winH;
+    private static final int TRACK_HEIGHT = 20;
 
     public MusicPlayerScreen() {
-        super(Text.literal("♪ Music Player"));
+        super(Text.literal("Music Player"));
     }
 
     @Override
@@ -29,24 +27,15 @@ public class MusicPlayerScreen extends Screen {
         AudioEngine engine = MusicPlayerClient.audioEngine;
         tracks = engine.loadTracks();
 
-        winW = 270;
-        winH = 240;
-        winX = (this.width - winW) / 2;
-        winY = (this.height - winH) / 2;
+        int btnY = this.height - 60;
+        int btnW = 60;
+        int startX = (this.width - 198) / 2;
 
-        int btnY = winY + winH - 58;
-        int btnW = 52;
-        int spacing = 6;
-        int totalW = 3 * btnW + 2 * spacing;
-        int startX = winX + (winW - totalW) / 2;
-
-        // ⏮ Anterior
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("⏮"), btn ->
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("|<"), btn ->
                 engine.previous()
         ).dimensions(startX, btnY, btnW, 20).build());
 
-        // ⏯ Play/Pause
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("⏯"), btn -> {
+        this.addDrawableChild(ButtonWidget.builder(Text.literal(">/||"), btn -> {
             if (engine.isPlaying()) {
                 engine.pause();
             } else if (engine.getCurrentIndex() >= 0) {
@@ -54,16 +43,14 @@ public class MusicPlayerScreen extends Screen {
             } else if (!tracks.isEmpty()) {
                 engine.play(0);
             }
-        }).dimensions(startX + btnW + spacing, btnY, btnW, 20).build());
+        }).dimensions(startX + 69, btnY, btnW, 20).build());
 
-        // ⏭ Próxima
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("⏭"), btn ->
+        this.addDrawableChild(ButtonWidget.builder(Text.literal(">|"), btn ->
                 engine.next()
-        ).dimensions(startX + (btnW + spacing) * 2, btnY, btnW, 20).build());
+        ).dimensions(startX + 138, btnY, btnW, 20).build());
 
-        // Slider de volume
         this.addDrawableChild(new SliderWidget(
-                winX + 10, winY + winH - 28, winW - 20, 16,
+                10, this.height - 30, this.width - 20, 20,
                 Text.literal("Volume: " + (int)(engine.getVolume() * 100) + "%"),
                 engine.getVolume()
         ) {
@@ -74,126 +61,66 @@ public class MusicPlayerScreen extends Screen {
                 engine.setVolume((float) value);
             }
         });
+
+        // Botões para cada música visível
+        for (int i = 0; i < VISIBLE_TRACKS; i++) {
+            final int index = i;
+            int trackY = 50 + i * TRACK_HEIGHT;
+            this.addDrawableChild(ButtonWidget.builder(Text.literal(""), btn -> {
+                int realIndex = scrollOffset + index;
+                if (realIndex < tracks.size()) {
+                    MusicPlayerClient.audioEngine.play(realIndex);
+                }
+            }).dimensions(5, trackY, this.width - 10, TRACK_HEIGHT - 2).build());
+        }
     }
 
     @Override
     public void render(DrawContext ctx, int mx, int my, float delta) {
         AudioEngine engine = MusicPlayerClient.audioEngine;
 
-        // Fundo
-        ctx.fill(winX, winY, winX + winW, winY + winH, 0xD01a1a2e);
-        ctx.drawBorder(winX, winY, winW, winH, 0xFF5555ff);
+        ctx.fill(0, 0, this.width, this.height, 0xCC000000);
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("== Music Player =="), this.width / 2, 8, 0xFFFFFFFF);
 
-        // Título + plataforma
-        String platform = PlatformHelper.isAndroid() ? " [Android]" : " [PC]";
-        ctx.drawCenteredTextWithShadow(textRenderer,
-                Text.literal("♪ Music Player" + platform),
-                winX + winW / 2, winY + 6, 0xFF9999FF);
-
-        // Separador
-        ctx.fill(winX + 5, winY + 18, winX + winW - 5, winY + 19, 0xFF5555ff);
-
-        // Nome da música atual
-        String trackLabel;
-        if (engine.isLoading()) {
-            trackLabel = "⏳ Carregando...";
-        } else if (!engine.getCurrentTrackName().isEmpty()) {
-            String icon = engine.isPlaying() ? "▶ " : "⏸ ";
-            String name = engine.getCurrentTrackName();
-            if (name.length() > 32) name = name.substring(0, 29) + "...";
-            trackLabel = icon + name;
-        } else {
-            trackLabel = "Nenhuma música tocando";
-        }
-        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(trackLabel),
-                winX + winW / 2, winY + 23, 0xFFFFFF55);
-
-        // Tempo (posição / duração)
-        if (engine.getDurationMs() > 0) {
-            String time = AudioEngine.formatTime(engine.getPositionMs())
-                    + " / " + AudioEngine.formatTime(engine.getDurationMs());
-            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(time),
-                    winX + winW / 2, winY + 34, 0xFFAAAAAA);
-        }
+        String status = engine.isLoading() ? "Carregando..." :
+                engine.isPlaying() ? "> " + shorten(engine.getCurrentTrackName()) :
+                !engine.getCurrentTrackName().isEmpty() ? "|| " + shorten(engine.getCurrentTrackName()) :
+                "Nenhuma musica";
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(status), this.width / 2, 20, 0xFFFFFF55);
 
         // Barra de progresso
-        int barX = winX + 10, barY = winY + 44;
-        int barW = winW - 20;
-        ctx.fill(barX, barY, barX + barW, barY + 5, 0xFF333355);
-        int prog = (int)(engine.getProgress() * barW);
-        ctx.fill(barX, barY, barX + prog, barY + 5, 0xFF5577FF);
+        int bw = this.width - 20;
+        ctx.fill(10, 35, 10 + bw, 40, 0xFF333333);
+        ctx.fill(10, 35, 10 + (int)(engine.getProgress() * bw), 40, 0xFF5599FF);
 
         // Lista de músicas
-        int listTop = winY + 54;
-        int listH = VISIBLE_TRACKS * TRACK_HEIGHT;
-        ctx.enableScissor(winX + 5, listTop, winX + winW - 5, listTop + listH);
-
         if (tracks.isEmpty()) {
-            // Mostra o caminho correto para a plataforma atual
-            String folderPath = PlatformHelper.getMusicFolderDisplay();
-            ctx.drawCenteredTextWithShadow(textRenderer,
-                    Text.literal("Nenhuma música encontrada!"),
-                    winX + winW / 2, listTop + 10, 0xFFFF5555);
-            ctx.drawCenteredTextWithShadow(textRenderer,
-                    Text.literal("Coloque .ogg ou .mp3 em:"),
-                    winX + winW / 2, listTop + 24, 0xFFAAAAAA);
-            // Quebra caminho longo em duas linhas
-            if (folderPath.length() > 35) {
-                int mid = folderPath.lastIndexOf('/', 35);
-                if (mid < 0) mid = 35;
-                ctx.drawCenteredTextWithShadow(textRenderer,
-                        Text.literal(folderPath.substring(0, mid + 1)),
-                        winX + winW / 2, listTop + 36, 0xFFFFFF55);
-                ctx.drawCenteredTextWithShadow(textRenderer,
-                        Text.literal(folderPath.substring(mid + 1)),
-                        winX + winW / 2, listTop + 48, 0xFFFFFF55);
-            } else {
-                ctx.drawCenteredTextWithShadow(textRenderer,
-                        Text.literal(folderPath),
-                        winX + winW / 2, listTop + 36, 0xFFFFFF55);
-            }
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Sem musicas!"), this.width / 2, 80, 0xFFFF5555);
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(PlatformHelper.getMusicFolderDisplay()), this.width / 2, 95, 0xFFFFFF00);
         } else {
-            for (int i = scrollOffset; i < Math.min(scrollOffset + VISIBLE_TRACKS, tracks.size()); i++) {
-                int ty = listTop + (i - scrollOffset) * TRACK_HEIGHT;
-                boolean selected = (i == engine.getCurrentIndex());
-                boolean hovered = mx >= winX + 5 && mx <= winX + winW - 5
-                        && my >= ty && my < ty + TRACK_HEIGHT;
-
-                if (selected)      ctx.fill(winX+5, ty, winX+winW-5, ty+TRACK_HEIGHT-1, 0x882255AA);
-                else if (hovered)  ctx.fill(winX+5, ty, winX+winW-5, ty+TRACK_HEIGHT-1, 0x44FFFFFF);
-
-                String tn = tracks.get(i);
-                if (tn.length() > 34) tn = tn.substring(0, 31) + "...";
-                ctx.drawTextWithShadow(textRenderer, Text.literal(tn),
-                        winX + 10, ty + 4, selected ? 0xFFFFFF55 : 0xFFCCCCCC);
+            for (int i = 0; i < VISIBLE_TRACKS; i++) {
+                int ri = scrollOffset + i;
+                if (ri >= tracks.size()) break;
+                int ty = 50 + i * TRACK_HEIGHT;
+                boolean sel = ri == engine.getCurrentIndex();
+                ctx.fill(5, ty, this.width - 5, ty + TRACK_HEIGHT - 2, sel ? 0x882255AA : 0x44FFFFFF);
+                ctx.drawTextWithShadow(textRenderer, Text.literal(shorten(tracks.get(ri))), 10, ty + 5, sel ? 0xFFFFFF55 : 0xFFCCCCCC);
             }
         }
-        ctx.disableScissor();
-
-        // Separador antes dos botões
-        ctx.fill(winX+5, winY+winH-63, winX+winW-5, winY+winH-62, 0xFF5555ff);
 
         super.render(ctx, mx, my, delta);
     }
 
-    @Override
-    public boolean mouseClicked(double mx, double my, int btn) {
-        int listTop = winY + 54;
-        if (mx >= winX+5 && mx <= winX+winW-5
-                && my >= listTop && my < listTop + VISIBLE_TRACKS * TRACK_HEIGHT) {
-            int clicked = scrollOffset + (int)((my - listTop) / TRACK_HEIGHT);
-            if (clicked >= 0 && clicked < tracks.size()) {
-                MusicPlayerClient.audioEngine.play(clicked);
-                return true;
-            }
-        }
-        return super.mouseClicked(mx, my, btn);
+    private String shorten(String s) {
+        int max = (this.width / 6) - 2;
+        return s.length() > max ? s.substring(0, max - 3) + "..." : s;
     }
 
     @Override
-    public boolean mouseScrolled(double mx, double my, double hAmt, double vAmt) {
-        scrollOffset -= (int) vAmt;
+    public boolean mouseScrolled(double mx, double my, double h, double v) {
+        scrollOffset -= (int) v;
         scrollOffset = Math.max(0, Math.min(scrollOffset, Math.max(0, tracks.size() - VISIBLE_TRACKS)));
+        this.clearAndInit();
         return true;
     }
 

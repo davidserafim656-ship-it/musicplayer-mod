@@ -64,8 +64,8 @@ public class AudioEngine {
         });
     }
 
-    public void pause() { if(currentSound!=null){MinecraftClient.getInstance().getSoundManager().pause();playing=false;} }
-    public void resume() { if(currentSound!=null){MinecraftClient.getInstance().getSoundManager().resumeAll();playing=true;} }
+    public void pause() { if(currentSound!=null){MinecraftClient.getInstance().getSoundManager().stopAll();playing=false;} }
+    public void resume() { if(currentSound!=null){if(currentIndex>=0){play(currentIndex);}} }
     public void stop() { if(currentSound!=null){MinecraftClient.getInstance().getSoundManager().stop(currentSound);currentSound=null;} playing=false; currentTrackName=""; }
     public void next() { if(!playlist.isEmpty()) play((currentIndex+1)%playlist.size()); }
     public void previous() { if(!playlist.isEmpty()) play((currentIndex-1+playlist.size())%playlist.size()); }

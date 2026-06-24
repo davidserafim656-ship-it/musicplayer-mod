@@ -45,3 +45,7 @@ java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
+
+repositories {
+    maven { url "https://maven.keksuccino.com/releases" }
+}

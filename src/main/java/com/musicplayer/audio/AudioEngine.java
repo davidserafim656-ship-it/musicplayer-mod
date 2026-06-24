@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.*;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.random.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.*;
@@ -26,7 +27,7 @@ public class AudioEngine {
         Path folder = PlatformHelper.getMusicFolder();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder, "*.{ogg,OGG}")) {
             for (Path entry : stream) { playlist.add(entry); names.add(entry.getFileName().toString()); }
-        } catch (IOException e) { LOGGER.error("[MusicPlayer] Erro ao carregar", e); }
+        } catch (IOException e) { LOGGER.error("[MusicPlayer] Erro", e); }
         playlist.sort(Comparator.comparing(p -> p.getFileName().toString().toLowerCase()));
         names.sort(String.CASE_INSENSITIVE_ORDER);
         return names;
@@ -42,31 +43,41 @@ public class AudioEngine {
         MinecraftClient mc = MinecraftClient.getInstance();
         mc.execute(() -> {
             try {
-                String uri = track.toUri().toString();
-                Sound sound = new Sound(uri, () -> volume, () -> 1.0f, 1, Sound.RegistrationType.FILE, false, false, 1);
-                WeightedSoundSet set = new WeightedSoundSet(Identifier.of("musicplayer", "track"), null);
-                set.add(sound);
-                SoundInstance si = new PositionedSoundInstance(
-                    Identifier.of("musicplayer", "track"),
-                    SoundCategory.MUSIC, volume, 1.0f,
-                    net.minecraft.util.math.random.Random.create(),
-                    false, 0, SoundInstance.AttenuationType.NONE, 0, 0, 0, true
+                Identifier id = Identifier.of("musicplayer", "track");
+                Sound snd = new Sound(
+                    id,
+                    () -> volume, () -> 1.0f,
+                    1, Sound.RegistrationType.FILE, false, false, 1
+                );
+                WeightedSoundSet set = new WeightedSoundSet(id, null);
+                set.add(snd);
+                mc.getSoundManager().registry.put(id, set);
+                SoundInstance si = PositionedSoundInstance.master(
+                    net.minecraft.registry.entry.RegistryEntry.of(
+                        new net.minecraft.sound.SoundEvent(id, java.util.Optional.empty())
+                    ), 1.0f, volume
                 );
                 mc.getSoundManager().play(si);
                 currentSound = si;
                 playing = true;
                 loading = false;
-                LOGGER.info("[MusicPlayer] Tocando: {}", currentTrackName);
             } catch (Exception e) {
-                LOGGER.error("[MusicPlayer] Erro: {}", e.getMessage());
+                LOGGER.error("[MusicPlayer] Erro ao tocar: {}", e.getMessage());
                 loading = false;
             }
         });
     }
 
-    public void pause() { if(currentSound!=null){MinecraftClient.getInstance().getSoundManager().stopAll();playing=false;} }
-    public void resume() { if(currentSound!=null){if(currentIndex>=0){play(currentIndex);}} }
-    public void stop() { if(currentSound!=null){MinecraftClient.getInstance().getSoundManager().stop(currentSound);currentSound=null;} playing=false; currentTrackName=""; }
+    public void stop() {
+        if (currentSound != null) {
+            MinecraftClient.getInstance().getSoundManager().stop(currentSound);
+            currentSound = null;
+        }
+        playing = false;
+        currentTrackName = "";
+    }
+    public void pause() { stop(); }
+    public void resume() { if(currentIndex>=0) play(currentIndex); }
     public void next() { if(!playlist.isEmpty()) play((currentIndex+1)%playlist.size()); }
     public void previous() { if(!playlist.isEmpty()) play((currentIndex-1+playlist.size())%playlist.size()); }
     public void setVolume(float v) { volume=Math.max(0f,Math.min(1f,v)); }
